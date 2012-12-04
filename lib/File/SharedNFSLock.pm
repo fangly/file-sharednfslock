@@ -59,7 +59,7 @@ have acquired the lock.
 The algorithm was snatched from a document called I<NFS Considered Harmful> by
 I<Shane Kerr>. I found it at L<http://www.time-travellers.org/shane/papers/NFS_considered_harmful.html>.
 Look for chapter III, I<List of Concerns>, concern I<d>: I<Exclusive File Creation>.
-The described workaround is, I quote the above:
+The described workaround is, I quote:
 
   The solution for performing atomic file locking using a lockfile
   is to create a unique file on the same fs (e.g., incorporating
@@ -149,8 +149,8 @@ sub lock {
   my $self = shift;
   warn "Getting lock on ".$self->{file}."\n" if DEBUG;
 
-  return if $self->got_lock;
-  warn "It is locked already... ".$self->{file}."\n" if DEBUG;
+  return 1 if $self->got_lock;
+  warn "It is not locked already... ".$self->{file}."\n" if DEBUG;
 
   my $before_time = Time::HiRes::time();
   warn "Before time is $before_time\n" if DEBUG;
