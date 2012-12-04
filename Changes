@@ -1,5 +1,8 @@
 Revision history for Perl extension File::SharedNFSLock.
 
+0.xx
+  - Support for threads (fixes RT bug #81597)
+
 0.03  Fri Mar 18 18:00 2011
   - Allow passing a unique token for multiple locking
     attempts on the same file from the same process.

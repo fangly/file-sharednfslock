@@ -37,13 +37,15 @@ File::SharedNFSLock - Inter-machine locking on NFS volumes
 
 =head1 DESCRIPTION
 
-NFS (at least before v4) is evil. File locking on NFS volumes is worse.
-This module attempts to implement file locking on NFS volumes using lock
-files and hard links. It's in production use at our site, but if it doesn't work
-for you, I'm not surprised!
+This module implements file locking on NFS (or non-NFS) filesystems.
 
-Note that the lock files are always written to the same directory as the original file!
-There is always one lock file per process that tries to acquire the lock.
+NFS (at least before v4) is evil. File locking on NFS volumes is worse. This
+module attempts to implement file locking on NFS volumes using lock files and
+hard links. It's in production use at our site, but if it doesn't work for you,
+I'm not surprised!
+
+Note that the lock files are always written to the same directory as the original
+file! There is always one lock file per process that tries to acquire the lock.
 This module does B<NOT> do signal handling. You will have to do that yourself.
 
 =head2 ALGORITHM
@@ -129,7 +131,8 @@ SCOPE: {
     if (DEBUG) {
       warn "New lock for file '$self->{file}' (not acquired yet).\n"
            ."Time out for acquisition: $self->{timeout_acquire}\n"
-           ."Time out for stale locks: $self->{timeout_stale}";
+           ."Time out for stale locks: $self->{timeout_stale}\n"
+           ."Poll interval           : $self->{poll_interval}\n";
     }
     return $self;
   }
@@ -144,27 +147,25 @@ Returns 1 on success, 0 on failure (time out).
 
 sub lock {
   my $self = shift;
-  warn "Getting lock on " . $self->{file} if DEBUG;
+  warn "Getting lock on ".$self->{file}."\n" if DEBUG;
 
   return if $self->locked;
-  warn "It's not locked already... " . $self->{file} if DEBUG;
+  warn "It is locked already... ".$self->{file}."\n" if DEBUG;
 
   my $before_time = Time::HiRes::time();
+  warn "Before time is $before_time\n" if DEBUG;
   while (1) {
-    my $got_lock = $self->_write_lock_file();
-    if ($got_lock) {
+    if ($self->_write_lock_file()) {
       return 1;
-    }
-    else {
+    } else {
       # check whether lock is stale
-      my $stale = $self->_is_stale_lock;
-      if ($stale) {
-        unlink($self->_lock_file);
-        unlink($self->_unique_lock_file);
-      }
-      else {
+      if ($self->_is_stale_lock) {
+        unlink $self->_lock_file;
+        unlink $self->_unique_lock_file;
+      } else {
         # hmm. lock valid, wait a bit or bail out
         my $now = Time::HiRes::time();
+        warn "Time now is $now\n" if DEBUG;
         if ($now-$before_time > $self->{timeout_acquire}) {
           $self->_unlink_lock_file;
           return 0;
@@ -202,11 +203,11 @@ sub locked {
   # check whether somebody else timed out the lock
   my @stat = stat($self->_unique_lock_file);
   if (defined($stat[STAT_NLINKS]) and $stat[STAT_NLINKS] == 2) {
-    warn "locked: LOCKED with " . $self->_unique_lock_file if DEBUG;
+    warn "locked: LOCKED with ".$self->_unique_lock_file."\n" if DEBUG;
     return 1;
   }
   else {
-    warn "locked: NOT LOCKED with " . $self->_unique_lock_file if DEBUG;
+    warn "locked: NOT LOCKED with ".$self->_unique_lock_file."\n" if DEBUG;
     return 0;
   }
 }
@@ -219,10 +220,10 @@ sub DESTROY {
 sub _unlink_lock_file {
   my $self = shift;
   if ($self->locked) {
-    warn "_unlink_lock_file: locked, removing main lock file" if DEBUG;
+    warn "_unlink_lock_file: locked, removing main lock file\n" if DEBUG;
     unlink($self->_lock_file);
   }
-  warn "_unlink_lock_file: removing unique lock file" if DEBUG;
+  warn "_unlink_lock_file: removing unique lock file\n" if DEBUG;
   unlink($self->_unique_lock_file);
 }
 
@@ -240,7 +241,7 @@ sub _write_lock_file {
   link($unique_lock_file, $lock_file);
   my @stat = stat($unique_lock_file);
   if ($stat[STAT_NLINKS] == 2) {
-    warn "_write_lock_file: HAVE LOCK!" if DEBUG;
+    warn "_write_lock_file: HAVE LOCK!\n" if DEBUG;
     return 1;
   }
   return 0;
@@ -250,7 +251,8 @@ sub _unique_lock_file {
   my $self = shift;
   return $self->{unique_lock_file} if defined $self->{unique_lock_file};
   my $lock_file = $self->_lock_file;
-  my $unique_lock_file = "$lock_file." . $self->{hostname} . ".$$." . $self->{token};
+  my $thread_id = exists $INC{'threads.pm'} ? threads->tid : '';
+  my $unique_lock_file = "$lock_file." . $self->{hostname} . ".$$.$thread_id." . $self->{token};
   $self->{unique_lock_file} = $unique_lock_file;
   return $self->{unique_lock_file};
 }
