@@ -29,4 +29,6 @@ ok $flock->unlock;
 ok not $flock->locked;
 ok not -f $lock_file;
 
+ok $flock->wait;
+
 done_testing();

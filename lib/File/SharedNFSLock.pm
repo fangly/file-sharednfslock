@@ -192,10 +192,10 @@ sub unlock {
 
 =head2 got_lock
 
-Checks whether we have the lock on the file. Prefer got_lock() over its older
-name, locked().
+Checks whether we have the lock on the file. Prefer calling got_lock() rather
+than its oder form, locked().
 
-I<Note:> Fairly expensive operation requiring a C<stat> call.
+I<Note:> This is a fairly expensive operation requiring a C<stat> call.
 
 =cut
 
@@ -213,6 +213,21 @@ sub got_lock {
   }
 }
 *locked = \&got_lock;
+
+=head2 wait
+
+Wait until the file becomes free of any lock. This uses the I<poll_interval>
+constructor passed to new().
+
+=cut
+
+sub wait {
+  my $self = shift;
+  while (-f $self->_lock_file) {
+    Time::HiRes::sleep($self->{poll_interval}) if $self->{poll_interval};
+  }
+  return 1;
+}
 
 sub DESTROY {
   my $self = shift;
