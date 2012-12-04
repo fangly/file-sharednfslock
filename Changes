@@ -1,6 +1,7 @@
 Revision history for Perl extension File::SharedNFSLock.
 
 0.xx
+  - Aliased got_lock() to locked(), for better clarity
   - Support for threads (fixes RT bug #81597)
 
 0.03  Fri Mar 18 18:00 2011

@@ -13,6 +13,7 @@ ok my $flock = File::SharedNFSLock->new(
     file => $some_file,
 );
 
+ok not $flock->got_lock;
 ok not $flock->locked;
 ok not -f $lock_file;
 
@@ -20,7 +21,7 @@ isa_ok $flock, 'File::SharedNFSLock';
 
 ok $flock->lock;
 
-ok $flock->locked;
+ok $flock->got_lock;
 ok -f $lock_file;
 
 ok $flock->unlock;

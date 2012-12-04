@@ -149,7 +149,7 @@ sub lock {
   my $self = shift;
   warn "Getting lock on ".$self->{file}."\n" if DEBUG;
 
-  return if $self->locked;
+  return if $self->got_lock;
   warn "It is locked already... ".$self->{file}."\n" if DEBUG;
 
   my $before_time = Time::HiRes::time();
@@ -190,27 +190,29 @@ sub unlock {
   $self->_unlink_lock_file;
 }
 
-=head2 locked
+=head2 got_lock
 
-Checks whether we have the lock on the file.
+Checks whether we have the lock on the file. Prefer got_lock() over its older
+name, locked().
 
 I<Note:> Fairly expensive operation requiring a C<stat> call.
 
 =cut
 
-sub locked {
+sub got_lock {
   my $self = shift;
   # check whether somebody else timed out the lock
   my @stat = stat($self->_unique_lock_file);
   if (defined($stat[STAT_NLINKS]) and $stat[STAT_NLINKS] == 2) {
-    warn "locked: LOCKED with ".$self->_unique_lock_file."\n" if DEBUG;
+    warn "got_lock: LOCKED with ".$self->_unique_lock_file."\n" if DEBUG;
     return 1;
   }
   else {
-    warn "locked: NOT LOCKED with ".$self->_unique_lock_file."\n" if DEBUG;
+    warn "got_lock: NOT LOCKED with ".$self->_unique_lock_file."\n" if DEBUG;
     return 0;
   }
 }
+*locked = \&got_lock;
 
 sub DESTROY {
   my $self = shift;
@@ -219,7 +221,7 @@ sub DESTROY {
 
 sub _unlink_lock_file {
   my $self = shift;
-  if ($self->locked) {
+  if ($self->got_lock) {
     warn "_unlink_lock_file: locked, removing main lock file\n" if DEBUG;
     unlink($self->_lock_file);
   }
