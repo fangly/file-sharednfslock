@@ -97,7 +97,7 @@ Default: 5 minutes. Set this to 0 to disable the feature.
 I<unique_token> is an optional parameter that will uniquely identify
 the lock. If you want to attempt locking the same file from
 the same process in different locations, they must set
-a unique token (process id and hostname are used additionally).
+a unique token (host name, process id and thread id are used additionally).
 Set this to C<1> to have a random token auto-generated.
 
 =cut
