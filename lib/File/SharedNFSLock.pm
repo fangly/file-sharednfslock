@@ -267,13 +267,7 @@ sub _write_lock_file {
   my $lock_file = $self->_lock_file;
   if (not exists $self->{compat}) {
     my $linked = link($unique_lock_file, $lock_file);
-    if ( (not $linked) && ($! =~ m/not permitted/i) ) {
-      warn "Warning: Going in compatibility mode since linking is not supported".
-        " on the filesystem that holds file $lock_file. You may run into race ".
-        "conditions...\n";
-      $self->{compat} = undef;
-      require File::Copy;
-    }
+    $self->_compat if (not $linked) && ($! =~ m/not permitted/i);
   }
 
   # Attempt locking via copying (compatibility mode)
@@ -282,6 +276,19 @@ sub _write_lock_file {
   }
 
   return $self->got_lock
+}
+
+sub _compat {
+  # Set things up for compatibility mode (copying instead of linking).
+  my ($self, $silent) = @_;
+  $silent ||= 0;
+  if (not $silent) {
+    warn "Warning: Going in compatibility mode since linking is not supported".
+      " on the filesystem that holds file ".$self->_lock_file.". You may run ".
+      "into race conditions...\n";
+  }
+  $self->{compat} = undef;
+  require File::Copy;
 }
 
 sub _unique_lock_file {
