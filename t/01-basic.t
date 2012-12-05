@@ -9,53 +9,57 @@ use File::SharedNFSLock;
 my $some_file = 'some_file_on_nfs';
 my $lock_file = 'some_file_on_nfs.lock';
 
-# Standard mode
 
-ok my $flock = File::SharedNFSLock->new(
-    file => $some_file,
-), 'Standard mode';
+# Basic tests, in standard and compatibility mode
 
-ok not $flock->got_lock;
-ok not $flock->locked;
-ok not -f $lock_file;
+for my $mode ('standard', 'compatibility') {
 
-isa_ok $flock, 'File::SharedNFSLock';
+  ok my $flock = File::SharedNFSLock->new(
+      file => $some_file,
+  ), "$mode mode";
 
-ok $flock->lock;
+  if ($mode eq 'compatibility') {
+    $flock->_compat('silent');
+  }
 
-ok $flock->got_lock;
-ok -f $lock_file;
+  ok not $flock->is_locked;
+  ok not $flock->got_lock;
+  ok not $flock->locked;
+  ok not -f $lock_file;
 
-ok $flock->unlock;
+  isa_ok $flock, 'File::SharedNFSLock';
 
-ok not $flock->locked;
-ok not -f $lock_file;
+  ok $flock->lock;
 
-ok $flock->wait;
+  ok $flock->is_locked;
+  ok $flock->got_lock;
+  ok -f $lock_file;
+
+  ok $flock->unlock;
+
+  ok not $flock->is_locked;
+  ok not $flock->locked;
+  ok not -f $lock_file;
+
+  ok $flock->wait;
+
+  write_lock_file($lock_file);
+  ok $flock->is_locked;
+  rm_lock_file($lock_file);
+
+}
 
 
-# Compatibility mode
+sub write_lock_file {
+  my ($file) = @_;
+  open my $out, '>', $file or die "Error: Could not write file $file\n$!\n";
+  close $out;
+}
 
-ok $flock = File::SharedNFSLock->new(
-    file => $some_file,
-), 'Compatibility mode';
-$flock->_compat('silent');
-
-ok not $flock->got_lock;
-ok not $flock->locked;
-ok not -f $lock_file;
-
-ok $flock->lock;
-
-ok $flock->got_lock;
-ok -f $lock_file;
-
-ok $flock->unlock;
-
-ok not $flock->locked;
-ok not -f $lock_file;
-
-ok $flock->wait;
+sub rm_lock_file {
+  my ($file) = @_;
+  unlink $file;
+}
 
 
 done_testing();
