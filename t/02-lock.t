@@ -48,7 +48,6 @@ is_deeply \@finished, [3,4], 'Thread 4 waited for thread 3';
 
 sub worker1 {
    my ($delay, $msg) = @_;
-   my $status = 0;
    my $flock = File::SharedNFSLock->new(
       file => $some_file,
    );
