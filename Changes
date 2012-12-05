@@ -1,11 +1,10 @@
 Revision history for Perl extension File::SharedNFSLock.
 
 0.xx
-  - Compatibility mode for filesystems that do not support linking
-  - Implemented a wait() method
-  - Implemented a is_locked() method
-  - Aliased got_lock() to locked(), for better clarity
-  - Support for threads (fixes RT bug #81597)
+  - Compatibility mode for filesystems without link support (RT bug #81683)
+  - Implemented a wait() and is_locked method, and aliased locked() to got_lock()
+    for clarity (RT bug #81600)
+  - Support for threads (RT bug #81597)
 
 0.03  Fri Mar 18 18:00 2011
   - Allow passing a unique token for multiple locking
