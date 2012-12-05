@@ -14,7 +14,7 @@ our $VERSION = '0.03';
 
 =head1 NAME
 
-File::SharedNFSLock - Inter-machine locking on NFS volumes
+File::SharedNFSLock - Inter-machine advisory file locking on NFS volumes
 
 =head1 SYNOPSIS
 
@@ -37,7 +37,7 @@ File::SharedNFSLock - Inter-machine locking on NFS volumes
 
 =head1 DESCRIPTION
 
-This module implements file locking on NFS (or non-NFS) filesystems.
+This module implements advisory file locking on NFS (or non-NFS) filesystems.
 
 NFS (at least before v4) is evil. File locking on NFS volumes is worse. This
 module attempts to implement file locking on NFS volumes using lock files and
