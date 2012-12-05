@@ -201,16 +201,24 @@ I<Note:> This is a fairly expensive operation requiring a C<stat> call.
 
 sub got_lock {
   my $self = shift;
-  # check whether somebody else timed out the lock
-  my @stat = stat($self->_unique_lock_file);
-  if (defined($stat[STAT_NLINKS]) and $stat[STAT_NLINKS] == 2) {
-    warn "got_lock: LOCKED with ".$self->_unique_lock_file."\n" if DEBUG;
-    return 1;
+  # Check whether somebody else timed out the lock
+  my $got_lock;
+  if (exists $self->{compat}) {
+    if (-f $self->_unique_lock_file) {
+      $got_lock = 1;
+    } else {
+      $got_lock = 0;
+    }
+  } else {
+    my @stat = stat($self->_unique_lock_file);
+    if (defined($stat[STAT_NLINKS]) and $stat[STAT_NLINKS] == 2) {
+      $got_lock = 1;
+    } else {
+      $got_lock = 0;
+    }
   }
-  else {
-    warn "got_lock: NOT LOCKED with ".$self->_unique_lock_file."\n" if DEBUG;
-    return 0;
-  }
+  warn "got_lock: ".($got_lock?'':'NOT ')."LOCKED with ".$self->_unique_lock_file."\n" if DEBUG;
+  return $got_lock;
 }
 *locked = \&got_lock;
 
@@ -249,19 +257,31 @@ sub _write_lock_file {
   my $unique_lock_file = $self->_unique_lock_file;
   unlink($unique_lock_file) if -e $unique_lock_file;
 
+  # Create process-specific lock file
   open my $fh, '>', $unique_lock_file
     or die "Could not open unique lock file for writing: $!";
   print $fh Time::HiRes::time(), "\012", $unique_lock_file, "\012";
   close $fh;
 
+  # Attempt locking via linking
   my $lock_file = $self->_lock_file;
-  link($unique_lock_file, $lock_file);
-  my @stat = stat($unique_lock_file);
-  if ($stat[STAT_NLINKS] == 2) {
-    warn "_write_lock_file: HAVE LOCK!\n" if DEBUG;
-    return 1;
+  if (not exists $self->{compat}) {
+    my $linked = link($unique_lock_file, $lock_file);
+    if ( (not $linked) && ($! =~ m/not permitted/i) ) {
+      warn "Warning: Going in compatibility mode since linking is not supported".
+        " on the filesystem that holds file $lock_file. You may run into race ".
+        "conditions...\n";
+      $self->{compat} = undef;
+      require File::Copy;
+    }
   }
-  return 0;
+
+  # Attempt locking via copying (compatibility mode)
+  if (exists $self->{compat}) {
+    File::Copy::copy($unique_lock_file, $lock_file);
+  }
+
+  return $self->got_lock
 }
 
 sub _unique_lock_file {
@@ -306,14 +326,24 @@ __END__
 
 =head1 CAVEATS
 
-This isn't as well tested as it should be even though it is being used
-in production here. Do your own testing.
+=head2 Compatibility mode
 
-There are no unit tests! (Patches welcome!)
+Some filesystems such as FAT32 do not support linking files. If the file you
+want to lock is on such a filesystem, you will receive a warning and the module
+will go in compatibility mode: copying will be used instead of linking to
+ensure that things keep running. However, it not does guarantee that locking
+is atomic, and as such, may encounter race conditions.
+
+Note: FAT32 is mostly relegated to USB sticks nowadays. No sane server will use
+NFS-mounted FAT32 filesystems.
+
+=head2 Testing
+
+Basic unit tests are in place for this module. However, it is not extensively
+tested (Patches welcome!). While the module is used on production systems here,
+do your own testing since it may contain hidden race conditions.
 
 Born out of frustration with existing locking modules.
-
-Probably contains hidden race conditions.
 
 =head1 SEE ALSO
 

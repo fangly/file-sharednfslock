@@ -6,9 +6,10 @@ WriteMakefile(
     NAME              => 'File::SharedNFSLock',
     VERSION_FROM      => 'lib/File/SharedNFSLock.pm', # finds $VERSION
     PREREQ_PM         => {
-      'Time::HiRes'  => '0',
-      'File::Spec'  => '0',
-      'Sys::Hostname'  => '0',
+      'File::Copy'    => '0',
+      'File::Spec'    => '0',
+      'Sys::Hostname' => '0',
+      'Time::HiRes'   => '0',
     }, # e.g., Module::Name => 1.1
     ($] >= 5.005 ?     ## Add these new keywords supported since 5.005
       (ABSTRACT_FROM  => 'lib/File/SharedNFSLock.pm', # retrieve abstract from module

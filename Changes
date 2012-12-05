@@ -1,6 +1,7 @@
 Revision history for Perl extension File::SharedNFSLock.
 
 0.xx
+  - Compatibility mode for filesystems that do not support linking
   - Implemented a wait() method
   - Aliased got_lock() to locked(), for better clarity
   - Support for threads (fixes RT bug #81597)
