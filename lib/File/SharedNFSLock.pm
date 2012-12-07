@@ -10,7 +10,7 @@ use Carp 'croak';
 use constant STAT_NLINKS => 3;
 use constant DEBUG => 0;
 
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 
 =head1 NAME
 
