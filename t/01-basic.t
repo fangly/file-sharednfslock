@@ -10,44 +10,36 @@ my $some_file = 'some_file_on_nfs';
 my $lock_file = 'some_file_on_nfs.lock';
 
 
-# Basic tests, in standard and compatibility mode
+# Basic tests
 
-for my $mode ('standard', 'compatibility') {
+ok my $flock = File::SharedNFSLock->new(
+    file => $some_file,
+);
 
-  ok my $flock = File::SharedNFSLock->new(
-      file => $some_file,
-  ), "$mode mode";
+isa_ok $flock, 'File::SharedNFSLock';
 
-  if ($mode eq 'compatibility') {
-    $flock->_compat('silent');
-  }
+ok not $flock->is_locked;
+ok not $flock->got_lock;
+ok not $flock->locked;
+ok not -f $lock_file;
 
-  ok not $flock->is_locked;
-  ok not $flock->got_lock;
-  ok not $flock->locked;
-  ok not -f $lock_file;
+ok $flock->lock;
 
-  isa_ok $flock, 'File::SharedNFSLock';
+ok $flock->is_locked;
+ok $flock->got_lock;
+ok -f $lock_file;
 
-  ok $flock->lock;
+ok $flock->unlock;
 
-  ok $flock->is_locked;
-  ok $flock->got_lock;
-  ok -f $lock_file;
+ok not $flock->is_locked;
+ok not $flock->locked;
+ok not -f $lock_file;
 
-  ok $flock->unlock;
+ok $flock->wait;
 
-  ok not $flock->is_locked;
-  ok not $flock->locked;
-  ok not -f $lock_file;
-
-  ok $flock->wait;
-
-  write_lock_file($lock_file);
-  ok $flock->is_locked;
-  rm_lock_file($lock_file);
-
-}
+write_lock_file($lock_file);
+ok $flock->is_locked;
+rm_lock_file($lock_file);
 
 
 sub write_lock_file {

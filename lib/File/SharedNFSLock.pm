@@ -130,9 +130,9 @@ SCOPE: {
     } => $class;
     if (DEBUG) {
       warn "New lock for file '$self->{file}' (not acquired yet).\n"
-           ."Time out for acquisition: $self->{timeout_acquire}\n"
-           ."Time out for stale locks: $self->{timeout_stale}\n"
-           ."Poll interval           : $self->{poll_interval}\n";
+          ."Time out for acquisition: $self->{timeout_acquire}\n"
+          ."Time out for stale locks: $self->{timeout_stale}\n"
+          ."Poll interval           : $self->{poll_interval}\n";
     }
     return $self;
   }
@@ -202,23 +202,14 @@ I<Note:> This is a fairly expensive operation requiring a C<stat> call.
 sub got_lock {
   my $self = shift;
   # Check whether somebody else timed out the lock
-  my $got_lock;
-  if (exists $self->{compat}) {
-    if (-f $self->_unique_lock_file) {
-      $got_lock = 1;
-    } else {
-      $got_lock = 0;
-    }
+  my $nlinks = ( stat($self->_unique_lock_file) )[STAT_NLINKS];
+  if ( (defined $nlinks) and ($nlinks == 2) ) {
+    warn "got_lock: LOCKED with ".$self->_unique_lock_file."\n" if DEBUG;
+    return 1;
   } else {
-    my @stat = stat($self->_unique_lock_file);
-    if (defined($stat[STAT_NLINKS]) and $stat[STAT_NLINKS] == 2) {
-      $got_lock = 1;
-    } else {
-      $got_lock = 0;
-    }
+    warn "got_lock: NOT LOCKED with ".$self->_unique_lock_file."\n" if DEBUG;
+    return 0;
   }
-  warn "got_lock: ".($got_lock?'':'NOT ')."LOCKED with ".$self->_unique_lock_file."\n" if DEBUG;
-  return $got_lock;
 }
 *locked = \&got_lock;
 
@@ -276,39 +267,21 @@ sub _write_lock_file {
   close $fh;
 
   # Attempt locking via linking
-  my $lock_file = $self->_lock_file;
-  if (not exists $self->{compat}) {
-    my $linked = link($unique_lock_file, $lock_file);
-    $self->_compat if (not $linked) && ($! =~ m/not permitted/i);
-  }
-
-  # Attempt locking via copying (compatibility mode)
-  if (exists $self->{compat}) {
-    File::Copy::copy($unique_lock_file, $lock_file);
+  my $linked = link($unique_lock_file, $self->_lock_file);
+  if ( (not $linked) && ($! =~ m/not permitted/i) ) {
+    die "Error: The filesystem that holds file ".$self->{file}." does not ".
+      "support link().\n";
   }
 
   return $self->got_lock
 }
 
-sub _compat {
-  # Set things up for compatibility mode (copying instead of linking).
-  my ($self, $silent) = @_;
-  $silent ||= 0;
-  if (not $silent) {
-    warn "Warning: Going in compatibility mode since linking is not supported".
-      " on the filesystem that holds file ".$self->_lock_file.". You may run ".
-      "into race conditions...\n";
-  }
-  $self->{compat} = undef;
-  require File::Copy;
-}
-
 sub _unique_lock_file {
   my $self = shift;
   return $self->{unique_lock_file} if defined $self->{unique_lock_file};
-  my $lock_file = $self->_lock_file;
   my $thread_id = exists $INC{'threads.pm'} ? threads->tid : '';
-  my $unique_lock_file = "$lock_file." . $self->{hostname} . ".$$.$thread_id." . $self->{token};
+  my $unique_lock_file = join( '.',
+    $self->_lock_file, $self->{hostname}, $$, $thread_id, $self->{token});
   $self->{unique_lock_file} = $unique_lock_file;
   return $self->{unique_lock_file};
 }
@@ -316,9 +289,8 @@ sub _unique_lock_file {
 sub _lock_file {
   my $self = shift;
   return $self->{lock_file} if defined $self->{lock_file};
-  my $orig_filename = $self->{file};
-  my ($volume, $path, $lock_file) = File::Spec->splitpath($orig_filename);
-  $lock_file .= ".lock";
+  my ($volume, $path, $lock_file) = File::Spec->splitpath( $self->{file} );
+  $lock_file .= '.lock';
   $lock_file = File::Spec->catpath($volume, $path, $lock_file);
   $self->{lock_file} = $lock_file;
   return $lock_file;
@@ -345,13 +317,10 @@ __END__
 
 =head1 CAVEATS
 
-=head2 Compatibility mode
+=head2 Lack of link() support
 
 Some filesystems such as FAT32 do not support linking files. If the file you
-want to lock is on such a filesystem, you will receive a warning and the module
-will go in compatibility mode: copying will be used instead of linking to
-ensure that things keep running. However, it not does guarantee that locking
-is atomic, and as such, may encounter race conditions.
+want to lock is on such a filesystem, you will receive an error message.
 
 Note: FAT32 is mostly relegated to USB sticks nowadays. No sane server will use
 NFS-mounted FAT32 filesystems.
@@ -366,10 +335,11 @@ Born out of frustration with existing locking modules.
 
 =head1 SEE ALSO
 
-L<File::NFSLock>, but that doesn't work for multiple machines (just for a single machine
-and multiple processes).
+L<File::NFSLock>, but that doesn't work for multiple machines (just for a single
+machine and multiple processes).
 
-L<Time::HiRes> is used to implement fractional-second C<sleep()> and C<time()> calls.
+L<Time::HiRes> is used to implement fractional-second C<sleep()> and C<time()>
+calls.
 
 =head1 AUTHOR
 
