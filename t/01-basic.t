@@ -24,6 +24,7 @@ ok not $flock->locked;
 ok not -f $lock_file;
 
 ok $flock->lock;
+ok $flock->lock, 'will exercise got_lock()';
 
 ok $flock->is_locked;
 ok $flock->got_lock;
