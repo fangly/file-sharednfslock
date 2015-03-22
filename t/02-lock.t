@@ -18,6 +18,9 @@ use Time::HiRes ();
 
 use File::SharedNFSLock;
 
+plan skip_all => "threads don't behave nicely on Windows" 
+    if $Config{osname} =~ /win/i;
+
 my $some_file = 'some_file_on_nfs';
 my $lock_file = 'some_file_on_nfs.lock';
 
