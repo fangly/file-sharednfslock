@@ -3,6 +3,7 @@
 use strict;
 use warnings;
 use Test::More;
+use Test::Exception;
 
 use File::SharedNFSLock;
 
@@ -11,6 +12,19 @@ my $lock_file = 'some_file_on_nfs.lock';
 
 
 # Basic tests
+
+subtest arguments => sub {
+    throws_ok { File::SharedNFSLock->new } qr/Need 'file' argument!/, 
+        'argument "file" required';
+
+    subtest unique_token => sub {
+        my $maker = sub { File::SharedNFSLock->new( file => 'dummy', @_ ) };
+
+        is( $maker->()->{token} => '', 'by default, nothing' );
+        is( $maker->( unique_token => 'secret' )->{token} => 'secret', 'specified token' );
+        like( $maker->( unique_token => 1 )->{token} => qr/^\w{20}$/, 'generated token' );
+    };
+};
 
 ok my $flock = File::SharedNFSLock->new(
     file => $some_file,
